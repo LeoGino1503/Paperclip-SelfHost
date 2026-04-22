@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER:-paperclip}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-paperclip}"
+      POSTGRES_DB: "${POSTGRES_DB:-paperclip}"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-paperclip} -d ${POSTGRES_DB:-paperclip}"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  paperclip:
+    image: reeoss/paperclipai-paperclip
+    container_name: paperclip
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    environment:
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      CURSOR_API_KEY: "${CURSOR_API_KEY}"
+      GOOGLE_GENERATIVE_AI_API_KEY: "${GOOGLE_GENERATIVE_AI_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      DATABASE_URL: "${DATABASE_URL:-postgres://${POSTGRES_USER:-paperclip}:${POSTGRES_PASSWORD:-paperclip}@db:5432/${POSTGRES_DB:-paperclip}}"
+      PORT: "3100"
+      SERVE_UI: "true"
+      PAPERCLIP_DEPLOYMENT_MODE: "authenticated"
+      PAPERCLIP_DEPLOYMENT_EXPOSURE: "private"
+      PAPERCLIP_PUBLIC_URL: "${PAPERCLIP_PUBLIC_URL:-http://localhost:3100}"
+      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET must be set}"
+    volumes:
+      - paperclip-data:/paperclip
+      - ./workspace:/workspace 
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  paperclip-data:
